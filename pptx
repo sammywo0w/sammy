@@ -1,40 +1,63 @@
 from flask import Flask, request, send_file
 from pptx import Presentation
-import os
+from pptx.util import Inches, Pt
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.dml.color import RGBColor
 import uuid
+import os
 
 app = Flask(__name__)
 
 @app.route('/generate-pptx', methods=['POST'])
 def generate_pptx():
-    data = request.json  # Ожидается структура {"TARGET CUSTOMERS": [...], "CUSTOMER CHANNELS": [...], ...}
-
-    if not isinstance(data, dict):
-        return {"error": "Данные должны быть в виде словаря {категория: [пункты]}"}, 400
+    data = request.json
 
     prs = Presentation()
-    slide_layout = prs.slide_layouts[1]  # Заголовок и содержимое
+    slide = prs.slides.add_slide(prs.slide_layouts[5])  # пустой слайд
 
-    for category, items in data.items():
-        slide = prs.slides.add_slide(slide_layout)
-        slide.shapes.title.text = category
-        content = slide.placeholders[1]
-        content.text = ""  # очищаем содержимое
+    # Фон
+    slide.shapes.title = None
+    slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), prs.slide_width, prs.slide_height
+    ).fill.solid()
+
+    # Позиции и размеры блоков (в дюймах)
+    positions = {
+        "Target Customers": (0.2, 0.8, 2.2, 3.5),
+        "Customer Channels": (2.5, 0.8, 2.2, 1.5),
+        "Value Proposition": (4.8, 0.8, 2.2, 1.5),
+        "Activities": (7.1, 0.8, 2.2, 1.5),
+        "Resources": (9.4, 0.8, 2.2, 1.5),
+        "Customer Relationship": (2.5, 2.4, 2.2, 1.5),
+        "Offering": (4.8, 2.4, 2.2, 1.5),
+        "Partners": (9.4, 2.4, 2.2, 1.5),
+        "Revenue Drivers": (0.2, 4.4, 5.6, 2.0),
+        "Cost Drivers": (5.9, 4.4, 5.6, 2.0),
+    }
+
+    for category, (x, y, w, h) in positions.items():
+        items = data.get(category, [])
+        box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        tf = box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = category
+        p.font.bold = True
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(0, 0, 139)  # тёмно-синий
 
         for item in items:
-            p = content.text_frame.add_paragraph()
-            p.text = item
-            p.level = 0
+            para = tf.add_paragraph()
+            para.text = f"• {item}"
+            para.level = 0
+            para.font.size = Pt(12)
 
-        # Удалим пустую первую строку
-        if content.text_frame.paragraphs[0].text == "":
-            content.text_frame._element.remove(content.text_frame.paragraphs[0]._p)
-
+    # Сохраняем
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = f"/tmp/{filename}"
     prs.save(filepath)
 
-    return send_file(filepath, as_attachment=True, download_name="presentation.pptx")
+    return send_file(filepath, as_attachment=True, download_name="business_model.pptx")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
