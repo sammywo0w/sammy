@@ -43,21 +43,23 @@ def generate_pptx():
         shape.line.color.rgb = RGBColor(0, 0, 0)
 
         text_frame = shape.text_frame
-        text_frame.clear()  # очищаем всё содержимое
+        text_frame.clear()
 
-        # Добавляем заголовок
-        p_title = text_frame.paragraphs[0]
+        # Добавим заголовок как отдельный параграф
+        p_title = text_frame.add_paragraph()
         p_title.text = title
         p_title.font.size = Pt(14)
         p_title.font.bold = True
+        p_title.font.color.rgb = RGBColor(0, 0, 0)
         p_title.space_after = Pt(6)
 
-        # Добавляем элементы списка
+        # Добавим элементы
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
             p.font.size = Pt(12)
+            p.font.color.rgb = RGBColor(0, 0, 0)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
