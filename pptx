@@ -1,68 +1,50 @@
 from flask import Flask, request, send_file
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.shapes import MSO_SHAPE
-import os
 import uuid
 
 app = Flask(__name__)
+
+# Преобразование ключей JSON в заголовки слайдов
+FIELD_LABELS = {
+    "target_customers": "Target Customers",
+    "customer_channels": "Customer Channels",
+    "value_proposition": "Value Proposition",
+    "activities": "Activities",
+    "resources": "Resources",
+    "customer_relationship": "Customer Relationship",
+    "offering": "Offering",
+    "partners": "Partners",
+    "revenue_drivers": "Revenue Drivers",
+    "cost_drivers": "Cost Drivers"
+}
 
 @app.route('/generate-pptx', methods=['POST'])
 def generate_pptx():
     data = request.json
 
-    categories = {
-        "Target Customers": data.get("target_customers", []),
-        "Customer Channels": data.get("customer_channels", []),
-        "Value Proposition": data.get("value_proposition", []),
-        "Activities": data.get("activities", []),
-        "Resources": data.get("resources", []),
-        "Customer Relationship": data.get("customer_relationship", []),
-        "Offering": data.get("offering", []),
-        "Partners": data.get("partners", []),
-        "Revenue Drivers": data.get("revenue_drivers", []),
-        "Cost Drivers": data.get("cost_drivers", []),
-    }
-
     prs = Presentation()
-    slide_layout = prs.slide_layouts[6]  # Пустой слайд
-    slide = prs.slides.add_slide(slide_layout)
-
-    left = Inches(0.3)
-    top = Inches(0.3)
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    left = Inches(0.2)
+    top = Inches(0.2)
     width = Inches(9)
-    height = Inches(6)
+    height = Inches(6.5)
+    textbox = slide.shapes.add_textbox(left, top, width, height)
+    text_frame = textbox.text_frame
 
-    box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    box.fill.background()
-    box.line.fill.background()
+    for key, title in FIELD_LABELS.items():
+        items = data.get(key, [])
+        if items:
+            p = text_frame.add_paragraph()
+            p.text = title
+            p.font.bold = True
+            p.font.size = Pt(16)
 
-    col_width = width / 5
-    row_height = height / 3
-
-    positions = [
-        ("Target Customers", 0, 0),
-        ("Customer Channels", 1, 0),
-        ("Value Proposition", 2, 0),
-        ("Activities", 3, 0),
-        ("Resources", 4, 0),
-        ("Customer Relationship", 0, 1),
-        ("Offering", 1, 1),
-        ("Partners", 4, 1),
-        ("Revenue Drivers", 0, 2),
-        ("Cost Drivers", 3, 2),
-    ]
-
-    for title, col, row in positions:
-        txBox = slide.shapes.add_textbox(left + col * col_width, top + row * row_height, col_width, row_height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = title
-        p.font.bold = True
-        p.font.size = Pt(14)
-        for item in categories.get(title, []):
-            tf.add_paragraph().text = f"• {item}"
+            for item in items:
+                p = text_frame.add_paragraph()
+                p.text = f"• {item}"
+                p.level = 1
+                p.font.size = Pt(14)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = f"/tmp/{filename}"
