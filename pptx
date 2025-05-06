@@ -1,78 +1,63 @@
-from flask import Flask, request, send_file
 from pptx import Presentation
 from pptx.util import Inches, Pt
-import uuid
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.dml.color import RGBColor
 
-app = Flask(__name__)
+# Данные из JSON
+data = {
+    "target_customers": ["School managers", "Independent surf schools"],
+    "customer_channels": ["Online advertising"],
+    "value_proposition": ["Streamlined scheduling"],
+    "activities": ["Manage instructors"],
+    "resources": ["Developer team"],
+    "customer_relationship": ["Support chat"],
+    "offering": ["Class scheduler"],
+    "partners": ["Surf schools"],
+    "revenue_drivers": ["Subscription fees"],
+    "cost_drivers": ["App development"]
+}
 
-@app.route('/generate-pptx', methods=['POST'])
-def generate_pptx():
-    data = request.json
+# Настройка презентации
+prs = Presentation()
+slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-    prs = Presentation()
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Пустой слайд
+# Размеры блоков (в дюймах)
+cols = [2.5, 2.5, 2.5, 2.5]
+rows = [1.5, 1.5, 2.0]
 
-    # Определяем позиции и размеры для каждого блока
-    blocks = {
-        "Target Customers": {"left": 0.2, "top": 0.2, "width": 2.5, "height": 1.5},
-        "Customer Channels": {"left": 3.0, "top": 0.2, "width": 2.5, "height": 1.5},
-        "Value Proposition": {"left": 5.8, "top": 0.2, "width": 3.5, "height": 1.5},
-        "Activities": {"left": 0.2, "top": 2.0, "width": 2.5, "height": 1.5},
-        "Resources": {"left": 3.0, "top": 2.0, "width": 2.5, "height": 1.5},
-        "Customer Relationship": {"left": 5.8, "top": 2.0, "width": 3.5, "height": 1.5},
-        "Offering": {"left": 0.2, "top": 3.8, "width": 2.5, "height": 1.5},
-        "Partners": {"left": 3.0, "top": 3.8, "width": 2.5, "height": 1.5},
-        "Revenue Drivers": {"left": 5.8, "top": 3.8, "width": 3.5, "height": 1.5},
-        "Cost Drivers": {"left": 0.2, "top": 5.6, "width": 9.1, "height": 1.5},
-    }
+# Позиции блоков (grid layout)
+titles = [
+    ("Target Customers", data["target_customers"], 0, 0),
+    ("Customer Channels", data["customer_channels"], 1, 0),
+    ("Value Proposition", data["value_proposition"], 2, 0),
+    ("Activities", data["activities"], 3, 0),
+    ("Resources", data["resources"], 3, 1),
+    ("Customer Relationship", data["customer_relationship"], 0, 1),
+    ("Offering", data["offering"], 1, 1),
+    ("Partners", data["partners"], 2, 1),
+    ("Revenue Drivers", data["revenue_drivers"], 0, 2),
+    ("Cost Drivers", data["cost_drivers"], 1, 2)
+]
 
-    # Преобразуем ключи из snake_case в заголовки
-    field_labels = {
-        "target_customers": "Target Customers",
-        "customer_channels": "Customer Channels",
-        "value_proposition": "Value Proposition",
-        "activities": "Activities",
-        "resources": "Resources",
-        "customer_relationship": "Customer Relationship",
-        "offering": "Offering",
-        "partners": "Partners",
-        "revenue_drivers": "Revenue Drivers",
-        "cost_drivers": "Cost Drivers"
-    }
+for title, items, col, row in titles:
+    left = Inches(col * 5)
+    top = Inches(row * 2.2)
+    width = Inches(5)
+    height = Inches(2)
 
-    for key, title in field_labels.items():
-        items = data.get(key, [])
-        if items:
-            pos = blocks.get(title)
-            if pos:
-                left = Inches(pos["left"])
-                top = Inches(pos["top"])
-                width = Inches(pos["width"])
-                height = Inches(pos["height"])
-                textbox = slide.shapes.add_textbox(left, top, width, height)
-                text_frame = textbox.text_frame
-                text_frame.word_wrap = True
-                text_frame.margin_left = Inches(0.1)
-                text_frame.margin_right = Inches(0.1)
-                text_frame.margin_top = Inches(0.05)
-                text_frame.margin_bottom = Inches(0.05)
+    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+    shape.line.color.rgb = RGBColor(0, 0, 0)
 
-                p = text_frame.paragraphs[0]
-                p.text = title
-                p.font.bold = True
-                p.font.size = Pt(14)
+    text_frame = shape.text_frame
+    text_frame.text = title
 
-                for item in items:
-                    p = text_frame.add_paragraph()
-                    p.text = f"• {item}"
-                    p.level = 1
-                    p.font.size = Pt(12)
+    for item in items:
+        p = text_frame.add_paragraph()
+        p.text = f"• {item}"
+        p.level = 0
+        p.font.size = Pt(12)
 
-    filename = f"{uuid.uuid4().hex}.pptx"
-    filepath = f"/tmp/{filename}"
-    prs.save(filepath)
-
-    return send_file(filepath, as_attachment=True, download_name="business_model.pptx")
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# Сохранить
+prs.save("business_model_canvas.pptx")
