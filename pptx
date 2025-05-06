@@ -46,11 +46,14 @@ def generate_pptx():
             text_frame = shape.text_frame
             text_frame.clear()
 
-            title_paragraph = text_frame.paragraphs[0]
+            # Добавляем заголовок
+            title_paragraph = text_frame.add_paragraph()
             title_paragraph.text = title
             title_paragraph.font.size = Pt(14)
             title_paragraph.font.bold = True
+            title_paragraph.space_after = Pt(6)
 
+            # Добавляем содержимое
             for item in items:
                 p = text_frame.add_paragraph()
                 p.text = f"• {item}"
