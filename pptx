@@ -1,0 +1,32 @@
+from flask import Flask, request, send_file
+from pptx import Presentation
+from pptx.util import Inches
+import os
+import uuid
+
+app = Flask(__name__)
+
+@app.route('/generate-pptx', methods=['POST'])
+def generate_pptx():
+    data = request.json
+    text = data.get('text', 'Нет текста для презентации')
+
+    # Создаём презентацию
+    prs = Presentation()
+    slide_layout = prs.slide_layouts[1]  # Заголовок и контент
+
+    # Разбиваем текст по абзацам или строкам
+    for idx, paragraph in enumerate(text.split('\n')):
+        if paragraph.strip():
+            slide = prs.slides.add_slide(slide_layout)
+            slide.shapes.title.text = f"Слайд {idx + 1}"
+            slide.placeholders[1].text = paragraph.strip()
+
+    filename = f"{uuid.uuid4().hex}.pptx"
+    filepath = f"/tmp/{filename}"
+    prs.save(filepath)
+
+    return send_file(filepath, as_attachment=True, download_name="presentation.pptx")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
