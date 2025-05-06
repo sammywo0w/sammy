@@ -5,46 +5,68 @@ import uuid
 
 app = Flask(__name__)
 
-# Преобразование ключей JSON в заголовки слайдов
-FIELD_LABELS = {
-    "target_customers": "Target Customers",
-    "customer_channels": "Customer Channels",
-    "value_proposition": "Value Proposition",
-    "activities": "Activities",
-    "resources": "Resources",
-    "customer_relationship": "Customer Relationship",
-    "offering": "Offering",
-    "partners": "Partners",
-    "revenue_drivers": "Revenue Drivers",
-    "cost_drivers": "Cost Drivers"
-}
-
 @app.route('/generate-pptx', methods=['POST'])
 def generate_pptx():
     data = request.json
 
     prs = Presentation()
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    left = Inches(0.2)
-    top = Inches(0.2)
-    width = Inches(9)
-    height = Inches(6.5)
-    textbox = slide.shapes.add_textbox(left, top, width, height)
-    text_frame = textbox.text_frame
+    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Пустой слайд
 
-    for key, title in FIELD_LABELS.items():
+    # Определяем позиции и размеры для каждого блока
+    blocks = {
+        "Target Customers": {"left": 0.2, "top": 0.2, "width": 2.5, "height": 1.5},
+        "Customer Channels": {"left": 3.0, "top": 0.2, "width": 2.5, "height": 1.5},
+        "Value Proposition": {"left": 5.8, "top": 0.2, "width": 3.5, "height": 1.5},
+        "Activities": {"left": 0.2, "top": 2.0, "width": 2.5, "height": 1.5},
+        "Resources": {"left": 3.0, "top": 2.0, "width": 2.5, "height": 1.5},
+        "Customer Relationship": {"left": 5.8, "top": 2.0, "width": 3.5, "height": 1.5},
+        "Offering": {"left": 0.2, "top": 3.8, "width": 2.5, "height": 1.5},
+        "Partners": {"left": 3.0, "top": 3.8, "width": 2.5, "height": 1.5},
+        "Revenue Drivers": {"left": 5.8, "top": 3.8, "width": 3.5, "height": 1.5},
+        "Cost Drivers": {"left": 0.2, "top": 5.6, "width": 9.1, "height": 1.5},
+    }
+
+    # Преобразуем ключи из snake_case в заголовки
+    field_labels = {
+        "target_customers": "Target Customers",
+        "customer_channels": "Customer Channels",
+        "value_proposition": "Value Proposition",
+        "activities": "Activities",
+        "resources": "Resources",
+        "customer_relationship": "Customer Relationship",
+        "offering": "Offering",
+        "partners": "Partners",
+        "revenue_drivers": "Revenue Drivers",
+        "cost_drivers": "Cost Drivers"
+    }
+
+    for key, title in field_labels.items():
         items = data.get(key, [])
         if items:
-            p = text_frame.add_paragraph()
-            p.text = title
-            p.font.bold = True
-            p.font.size = Pt(16)
+            pos = blocks.get(title)
+            if pos:
+                left = Inches(pos["left"])
+                top = Inches(pos["top"])
+                width = Inches(pos["width"])
+                height = Inches(pos["height"])
+                textbox = slide.shapes.add_textbox(left, top, width, height)
+                text_frame = textbox.text_frame
+                text_frame.word_wrap = True
+                text_frame.margin_left = Inches(0.1)
+                text_frame.margin_right = Inches(0.1)
+                text_frame.margin_top = Inches(0.05)
+                text_frame.margin_bottom = Inches(0.05)
 
-            for item in items:
-                p = text_frame.add_paragraph()
-                p.text = f"• {item}"
-                p.level = 1
+                p = text_frame.paragraphs[0]
+                p.text = title
+                p.font.bold = True
                 p.font.size = Pt(14)
+
+                for item in items:
+                    p = text_frame.add_paragraph()
+                    p.text = f"• {item}"
+                    p.level = 1
+                    p.font.size = Pt(12)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = f"/tmp/{filename}"
