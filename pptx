@@ -1,63 +1,60 @@
+from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
+import os
+import uuid
 
-# Данные из JSON
-data = {
-    "target_customers": ["School managers", "Independent surf schools"],
-    "customer_channels": ["Online advertising"],
-    "value_proposition": ["Streamlined scheduling"],
-    "activities": ["Manage instructors"],
-    "resources": ["Developer team"],
-    "customer_relationship": ["Support chat"],
-    "offering": ["Class scheduler"],
-    "partners": ["Surf schools"],
-    "revenue_drivers": ["Subscription fees"],
-    "cost_drivers": ["App development"]
-}
+app = Flask(__name__)
 
-# Настройка презентации
-prs = Presentation()
-slide = prs.slides.add_slide(prs.slide_layouts[6])
+@app.route('/generate', methods=['POST'])
+def generate_pptx():
+    data = request.get_json()
 
-# Размеры блоков (в дюймах)
-cols = [2.5, 2.5, 2.5, 2.5]
-rows = [1.5, 1.5, 2.0]
+    if not data:
+        return jsonify({"error": "Invalid or missing JSON"}), 400
 
-# Позиции блоков (grid layout)
-titles = [
-    ("Target Customers", data["target_customers"], 0, 0),
-    ("Customer Channels", data["customer_channels"], 1, 0),
-    ("Value Proposition", data["value_proposition"], 2, 0),
-    ("Activities", data["activities"], 3, 0),
-    ("Resources", data["resources"], 3, 1),
-    ("Customer Relationship", data["customer_relationship"], 0, 1),
-    ("Offering", data["offering"], 1, 1),
-    ("Partners", data["partners"], 2, 1),
-    ("Revenue Drivers", data["revenue_drivers"], 0, 2),
-    ("Cost Drivers", data["cost_drivers"], 1, 2)
-]
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-for title, items, col, row in titles:
-    left = Inches(col * 5)
-    top = Inches(row * 2.2)
-    width = Inches(5)
-    height = Inches(2)
+    titles = [
+        ("Target Customers", data.get("target_customers", []), 0, 0),
+        ("Customer Channels", data.get("customer_channels", []), 1, 0),
+        ("Value Proposition", data.get("value_proposition", []), 2, 0),
+        ("Activities", data.get("activities", []), 3, 0),
+        ("Resources", data.get("resources", []), 3, 1),
+        ("Customer Relationship", data.get("customer_relationship", []), 0, 1),
+        ("Offering", data.get("offering", []), 1, 1),
+        ("Partners", data.get("partners", []), 2, 1),
+        ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2),
+        ("Cost Drivers", data.get("cost_drivers", []), 1, 2)
+    ]
 
-    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
-    shape.line.color.rgb = RGBColor(0, 0, 0)
+    for title, items, col, row in titles:
+        left = Inches(col * 2.5)
+        top = Inches(row * 1.5)
+        width = Inches(2.5)
+        height = Inches(1.5)
 
-    text_frame = shape.text_frame
-    text_frame.text = title
+        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        shape.line.color.rgb = RGBColor(0, 0, 0)
 
-    for item in items:
-        p = text_frame.add_paragraph()
-        p.text = f"• {item}"
-        p.level = 0
-        p.font.size = Pt(12)
+        text_frame = shape.text_frame
+        text_frame.text = title
 
-# Сохранить
-prs.save("business_model_canvas.pptx")
+        for item in items:
+            p = text_frame.add_paragraph()
+            p.text = f"• {item}"
+            p.level = 0
+            p.font.size = Pt(12)
+
+    filename = f"{uuid.uuid4().hex}.pptx"
+    filepath = os.path.join("/tmp", filename)
+    prs.save(filepath)
+    return send_file(filepath, as_attachment=True, download_name="business_model_canvas.pptx")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
