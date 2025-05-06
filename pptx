@@ -2,9 +2,8 @@ from flask import Flask, request, send_file
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.dml.color import RGBColor
-import uuid
 import os
+import uuid
 
 app = Flask(__name__)
 
@@ -12,47 +11,59 @@ app = Flask(__name__)
 def generate_pptx():
     data = request.json
 
-    prs = Presentation()
-    slide = prs.slides.add_slide(prs.slide_layouts[5])  # пустой слайд
-
-    # Фон
-    slide.shapes.title = None
-    slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), prs.slide_width, prs.slide_height
-    ).fill.solid()
-
-    # Позиции и размеры блоков (в дюймах)
-    positions = {
-        "Target Customers": (0.2, 0.8, 2.2, 3.5),
-        "Customer Channels": (2.5, 0.8, 2.2, 1.5),
-        "Value Proposition": (4.8, 0.8, 2.2, 1.5),
-        "Activities": (7.1, 0.8, 2.2, 1.5),
-        "Resources": (9.4, 0.8, 2.2, 1.5),
-        "Customer Relationship": (2.5, 2.4, 2.2, 1.5),
-        "Offering": (4.8, 2.4, 2.2, 1.5),
-        "Partners": (9.4, 2.4, 2.2, 1.5),
-        "Revenue Drivers": (0.2, 4.4, 5.6, 2.0),
-        "Cost Drivers": (5.9, 4.4, 5.6, 2.0),
+    categories = {
+        "Target Customers": data.get("target_customers", []),
+        "Customer Channels": data.get("customer_channels", []),
+        "Value Proposition": data.get("value_proposition", []),
+        "Activities": data.get("activities", []),
+        "Resources": data.get("resources", []),
+        "Customer Relationship": data.get("customer_relationship", []),
+        "Offering": data.get("offering", []),
+        "Partners": data.get("partners", []),
+        "Revenue Drivers": data.get("revenue_drivers", []),
+        "Cost Drivers": data.get("cost_drivers", []),
     }
 
-    for category, (x, y, w, h) in positions.items():
-        items = data.get(category, [])
-        box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
-        tf = box.text_frame
+    prs = Presentation()
+    slide_layout = prs.slide_layouts[6]  # Пустой слайд
+    slide = prs.slides.add_slide(slide_layout)
+
+    left = Inches(0.3)
+    top = Inches(0.3)
+    width = Inches(9)
+    height = Inches(6)
+
+    box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+    box.fill.background()
+    box.line.fill.background()
+
+    col_width = width / 5
+    row_height = height / 3
+
+    positions = [
+        ("Target Customers", 0, 0),
+        ("Customer Channels", 1, 0),
+        ("Value Proposition", 2, 0),
+        ("Activities", 3, 0),
+        ("Resources", 4, 0),
+        ("Customer Relationship", 0, 1),
+        ("Offering", 1, 1),
+        ("Partners", 4, 1),
+        ("Revenue Drivers", 0, 2),
+        ("Cost Drivers", 3, 2),
+    ]
+
+    for title, col, row in positions:
+        txBox = slide.shapes.add_textbox(left + col * col_width, top + row * row_height, col_width, row_height)
+        tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = category
+        p.text = title
         p.font.bold = True
         p.font.size = Pt(14)
-        p.font.color.rgb = RGBColor(0, 0, 139)  # тёмно-синий
+        for item in categories.get(title, []):
+            tf.add_paragraph().text = f"• {item}"
 
-        for item in items:
-            para = tf.add_paragraph()
-            para.text = f"• {item}"
-            para.level = 0
-            para.font.size = Pt(12)
-
-    # Сохраняем
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = f"/tmp/{filename}"
     prs.save(filepath)
