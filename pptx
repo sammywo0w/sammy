@@ -28,7 +28,7 @@ def generate_pptx():
     title_frame.paragraphs[0].font.size = Pt(24)
     title_frame.paragraphs[0].font.bold = True
 
-    # Блоки Canvas: (название, данные, x, y, ширина в колонках, высота в строках)
+    # Блоки Canvas
     blocks = [
         ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
         ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
@@ -63,17 +63,17 @@ def generate_pptx():
         shape.line.color.rgb = RGBColor(0, 0, 128)
 
         text_frame = shape.text_frame
-        text_frame.clear()
+        text_frame.clear()  # очищаем
 
-        # Заголовок блока
+        # Добавляем заголовок как отдельный параграф
         title_paragraph = text_frame.add_paragraph()
         title_paragraph.text = title
         title_paragraph.font.size = Pt(14)
         title_paragraph.font.bold = True
+        title_paragraph.space_after = Pt(6)
 
         # Контент
-        max_items = 10
-        font_size = Pt(12 if len(items) <= max_items else 10)
+        font_size = Pt(12 if len(items) <= 10 else 10)
 
         for item in items:
             p = text_frame.add_paragraph()
