@@ -28,7 +28,7 @@ def generate_pptx():
     title_frame.paragraphs[0].font.size = Pt(24)
     title_frame.paragraphs[0].font.bold = True
 
-    # Блоки Canvas
+    # Блоки Canvas: (название, данные, x, y, ширина в колонках, высота в строках)
     blocks = [
         ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
         ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
@@ -63,23 +63,20 @@ def generate_pptx():
         shape.line.color.rgb = RGBColor(0, 0, 128)
 
         text_frame = shape.text_frame
-        text_frame.clear()  # очищаем
+        text_frame.text = title  # Устанавливаем заголовок
 
-        # Добавляем заголовок как отдельный параграф
-        title_paragraph = text_frame.add_paragraph()
-        title_paragraph.text = title
+        # Стили заголовка
+        title_paragraph = text_frame.paragraphs[0]
         title_paragraph.font.size = Pt(14)
         title_paragraph.font.bold = True
         title_paragraph.space_after = Pt(6)
 
-        # Контент
-        font_size = Pt(12 if len(items) <= 10 else 10)
-
+        # Контент (всегда шрифт 10 pt)
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
-            p.font.size = font_size
+            p.font.size = Pt(10)
             p.font.color.rgb = RGBColor(0, 0, 0)
 
     filename = f"{uuid.uuid4().hex}.pptx"
