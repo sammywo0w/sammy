@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 import os
 import uuid
@@ -21,14 +22,14 @@ def generate_pptx():
     slide_height = prs.slide_height
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-    # Заголовок слайда
+    # Заголовок
     title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
     title_frame = title_shape.text_frame
     title_frame.text = f"Business Model: {model_name}"
     title_frame.paragraphs[0].font.size = Pt(24)
     title_frame.paragraphs[0].font.bold = True
 
-    # Блоки Canvas
+    # Canvas блоки
     blocks = [
         ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
         ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
@@ -64,6 +65,10 @@ def generate_pptx():
 
         text_frame = shape.text_frame
         text_frame.clear()
+        text_frame.word_wrap = True
+        text_frame.margin_top = Inches(0.05)
+        text_frame.margin_left = Inches(0.05)
+        text_frame.margin_right = Inches(0.05)
 
         # Заголовок блока
         p_title = text_frame.paragraphs[0]
@@ -71,15 +76,16 @@ def generate_pptx():
         p_title.font.size = Pt(12)
         p_title.font.bold = True
         p_title.font.color.rgb = RGBColor(0, 0, 0)
+        p_title.alignment = PP_ALIGN.LEFT
 
-        # Пункты списка
-        font_size = Pt(10)
+        # Элементы списка
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
-            p.font.size = font_size
+            p.font.size = Pt(10)
             p.font.color.rgb = RGBColor(0, 0, 0)
+            p.alignment = PP_ALIGN.LEFT
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
