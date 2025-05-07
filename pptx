@@ -1,90 +1,97 @@
+from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.dml.color import RGBColor
+import os
+import uuid
 
-# Размер слайда (обычный 16:9)
-prs = Presentation()
-prs.slide_width = Inches(13.33)
-prs.slide_height = Inches(7.5)
+app = Flask(__name__)
 
-# Добавляем слайд
-slide_layout = prs.slide_layouts[6]
-slide = prs.slides.add_slide(slide_layout)
+@app.route('/generate', methods=['POST'])
+def generate_pptx():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid or missing JSON"}), 400
 
-# Заголовок
-title_shape = slide.shapes.title
-if title_shape is None:
-    title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.5))
-title_shape.text = "Business Model: business model name 1"
-title_shape.text_frame.paragraphs[0].font.size = Pt(24)
-title_shape.text_frame.paragraphs[0].font.bold = True
+    model_name = data.get("model_name", "Business Model Canvas")
 
-# Размеры блоков
-col_width = Inches(2.1)
-row_height = Inches(1.2)
-start_left = Inches(0.3)
-start_top = Inches(1)
-
-# Блоки бизнес-модели
-blocks = [
-    ["Target Customers", "• School managers\n• another activity\n• this is a test\n• this is another test\n• This is another test\n• Independent surf schools\n• Surf instructors"],
-    ["Customer Channels", "• Online advertising\n• Partnerships with surf schools\n• Social media networks"],
-    ["Value Proposition", "• Streamlined class scheduling\n• Enhanced communication with students\n• Efficient teacher management"],
-    ["Activities", "• Schedule surfing classes\n• Manage surf instructors\n• Track student attendance"],
-    ["Resources", "• Developer team\n• Cloud server hosting\n• CRM software"],
-
-    ["Customer Relationship", "• Customer support chat\n• In-app notifications\n• Email newsletters"],
-    ["Offering", "• Surf class scheduling\n• Teacher management interface\n• Student tracking dashboard"],
-    ["Partners", "• Local surf schools\n• Surf equipment suppliers\n• Surf instructor associations"],
-
-    ["Revenue Drivers", "• Subscription fees\n• Premium features\n• Advertising partnerships\n• renting of material"],
-    ["Cost Drivers", "• App development costs\n• Server maintenance\n• Marketing expenses"],
-]
-
-# Позиции (row, col, colspan)
-positions = [
-    (0, 0, 1), (0, 1, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1),
-    (1, 0, 1), (1, 1, 2), (1, 3, 1),
-    (2, 0, 2), (2, 2, 3),
-]
-
-# Добавляем блоки
-for (i, (row, col, colspan)) in enumerate(positions):
-    width = col_width * colspan
-    height = row_height
-    left = start_left + col_width * col
-    top = start_top + row_height * row
-
-    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    shape.fill.background()
-    line = shape.line
-    line.color.rgb = RGBColor(0, 0, 128)
-
-    text_frame = shape.text_frame
-    text_frame.clear()
-    text_frame.word_wrap = True
-    text_frame.margin_top = Inches(0.05)
-    text_frame.margin_left = Inches(0.05)
-    text_frame.margin_right = Inches(0.05)
-    text_frame.vertical_anchor = MSO_ANCHOR.TOP  # Выравнивание по верхнему краю
+    prs = Presentation()
+    slide_width = prs.slide_width
+    slide_height = prs.slide_height
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
 
     # Заголовок
-    p = text_frame.paragraphs[0]
-    run = p.add_run()
-    run.text = blocks[i][0]
-    run.font.bold = True
-    run.font.size = Pt(10)
-    p.alignment = PP_ALIGN.LEFT
+    title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
+    title_frame = title_shape.text_frame
+    title_frame.text = f"Business Model: {model_name}"
+    title_frame.paragraphs[0].font.size = Pt(24)
+    title_frame.paragraphs[0].font.bold = True
 
-    # Текст
-    for line_text in blocks[i][1].split('\n'):
-        p = text_frame.add_paragraph()
-        run = p.add_run()
-        run.text = line_text
-        run.font.size = Pt(10)
-        p.alignment = PP_ALIGN.LEFT
+    # Canvas блоки
+    blocks = [
+        ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
+        ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
+        ("Value Proposition", data.get("value_proposition", []), 4, 0, 2, 1),
+        ("Activities", data.get("activities", []), 6, 0, 2, 1),
+        ("Resources", data.get("resources", []), 8, 0, 2, 1),
+        ("Customer Relationship", data.get("customer_relationship", []), 0, 1, 2, 1),
+        ("Offering", data.get("offering", []), 2, 1, 4, 1),
+        ("Partners", data.get("partners", []), 6, 1, 2, 1),
+        ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2, 5, 1),
+        ("Cost Drivers", data.get("cost_drivers", []), 5, 2, 5, 1),
+    ]
 
-# Сохраняем
-prs.save("business_model_canvas.pptx")
+    cols = 10
+    rows = 3
+    margin_left = Inches(0.3)
+    margin_top = Inches(1.0)
+    grid_width = slide_width - Inches(0.6)
+    grid_height = slide_height - Inches(1.4)
+    cell_width = grid_width / cols
+    cell_height = grid_height / rows
+
+    for title, items, x, y, w, h in blocks:
+        left = margin_left + x * cell_width
+        top = margin_top + y * cell_height
+        width = w * cell_width
+        height = h * cell_height
+
+        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        shape.line.color.rgb = RGBColor(0, 0, 128)
+
+        text_frame = shape.text_frame
+        text_frame.clear()
+        text_frame.word_wrap = True
+        text_frame.margin_top = Inches(0.05)
+        text_frame.margin_left = Inches(0.05)
+        text_frame.margin_right = Inches(0.05)
+        text_frame.vertical_anchor = MSO_ANCHOR.TOP  # выравнивание по верху
+
+        # Заголовок блока
+        p_title = text_frame.paragraphs[0]
+        p_title.text = title
+        p_title.font.size = Pt(12)
+        p_title.font.bold = True
+        p_title.font.color.rgb = RGBColor(0, 0, 0)
+        p_title.alignment = PP_ALIGN.LEFT
+
+        # Элементы списка
+        for item in items:
+            p = text_frame.add_paragraph()
+            p.text = f"• {item}"
+            p.level = 0
+            p.font.size = Pt(10)
+            p.font.color.rgb = RGBColor(0, 0, 0)
+            p.alignment = PP_ALIGN.LEFT
+
+    filename = f"{uuid.uuid4().hex}.pptx"
+    filepath = os.path.join("/tmp", filename)
+    prs.save(filepath)
+    return send_file(filepath, as_attachment=True, download_name="business_model_canvas.pptx")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
