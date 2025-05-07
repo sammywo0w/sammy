@@ -21,14 +21,14 @@ def generate_pptx():
     slide_height = prs.slide_height
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-    # Заголовок
+    # Заголовок слайда
     title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
     title_frame = title_shape.text_frame
     title_frame.text = f"Business Model: {model_name}"
     title_frame.paragraphs[0].font.size = Pt(24)
     title_frame.paragraphs[0].font.bold = True
 
-    # Блоки Canvas: (название, данные, x, y, ширина в колонках, высота в строках)
+    # Блоки Canvas
     blocks = [
         ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
         ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
@@ -63,20 +63,22 @@ def generate_pptx():
         shape.line.color.rgb = RGBColor(0, 0, 128)
 
         text_frame = shape.text_frame
-        text_frame.text = title  # Устанавливаем заголовок
+        text_frame.clear()
 
-        # Стили заголовка
-        title_paragraph = text_frame.paragraphs[0]
-        title_paragraph.font.size = Pt(14)
-        title_paragraph.font.bold = True
-        title_paragraph.space_after = Pt(6)
+        # Заголовок блока
+        p_title = text_frame.paragraphs[0]
+        p_title.text = title
+        p_title.font.size = Pt(12)
+        p_title.font.bold = True
+        p_title.font.color.rgb = RGBColor(0, 0, 0)
 
-        # Контент (всегда шрифт 10 pt)
+        # Пункты списка
+        font_size = Pt(10)
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
-            p.font.size = Pt(10)
+            p.font.size = font_size
             p.font.color.rgb = RGBColor(0, 0, 0)
 
     filename = f"{uuid.uuid4().hex}.pptx"
