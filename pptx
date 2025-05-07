@@ -11,54 +11,63 @@ app = Flask(__name__)
 @app.route('/generate', methods=['POST'])
 def generate_pptx():
     data = request.get_json()
-
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
+    model_name = data.get("model_name", "Business Model Canvas")
+
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+    # Заголовок
+    title_shape = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.8))
+    title_frame = title_shape.text_frame
+    title_frame.text = f"Business Model: {model_name}"
+    title_frame.paragraphs[0].font.size = Pt(24)
+    title_frame.paragraphs[0].font.bold = True
 
     titles = [
         ("Target Customers", data.get("target_customers", []), 0, 0),
         ("Customer Channels", data.get("customer_channels", []), 1, 0),
         ("Value Proposition", data.get("value_proposition", []), 2, 0),
         ("Activities", data.get("activities", []), 3, 0),
-        ("Resources", data.get("resources", []), 3, 1),
+        ("Resources", data.get("resources", []), 4, 0),
         ("Customer Relationship", data.get("customer_relationship", []), 0, 1),
         ("Offering", data.get("offering", []), 1, 1),
         ("Partners", data.get("partners", []), 2, 1),
         ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2),
-        ("Cost Drivers", data.get("cost_drivers", []), 1, 2)
+        ("Cost Drivers", data.get("cost_drivers", []), 1, 2),
     ]
 
+    # Размеры
+    col_width = Inches(2.0)
+    row_height = Inches(2.0)
+
     for title, items, col, row in titles:
-        left = Inches(col * 2.5)
-        top = Inches(row * 1.5)
-        width = Inches(2.5)
-        height = Inches(1.5)
+        left = col * col_width + Inches(0.5)
+        top = row * row_height + Inches(1.2)
+        width = col_width
+        height = row_height
 
         shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
         shape.fill.solid()
         shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
-        shape.line.color.rgb = RGBColor(0, 0, 0)
+        shape.line.color.rgb = RGBColor(0, 0, 128)
 
         text_frame = shape.text_frame
-        text_frame.clear()
+        text_frame.clear()  # очищаем на всякий случай
+        title_paragraph = text_frame.paragraphs[0]
+        title_paragraph.text = title
+        title_paragraph.font.size = Pt(14)
+        title_paragraph.font.bold = True
 
-        # Добавим заголовок как отдельный параграф
-        p_title = text_frame.add_paragraph()
-        p_title.text = title
-        p_title.font.size = Pt(14)
-        p_title.font.bold = True
-        p_title.font.color.rgb = RGBColor(0, 0, 0)
-        p_title.space_after = Pt(6)
+        font_size = Pt(12 if len(items) <= 5 else 10)
 
-        # Добавим элементы
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
-            p.font.size = Pt(12)
+            p.font.size = font_size
             p.font.color.rgb = RGBColor(0, 0, 0)
 
     filename = f"{uuid.uuid4().hex}.pptx"
