@@ -18,9 +18,16 @@ def generate_pptx():
     model_name = data.get("model_name", "Business Model Canvas")
 
     prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+    # Фон слайда — голубой
+    background = slide.background
+    fill = background.fill
+    fill.solid()
+    fill.fore_color.rgb = RGBColor(221, 235, 247)
+
     slide_width = prs.slide_width
     slide_height = prs.slide_height
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
 
     # Заголовок
     title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
@@ -62,7 +69,7 @@ def generate_pptx():
 
         shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
         shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor(221, 235, 247)  # светло-голубой фон
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)  # белый фон блоков
         shape.line.color.rgb = RGBColor(0, 0, 128)  # тёмно-синяя рамка
 
         text_frame = shape.text_frame
