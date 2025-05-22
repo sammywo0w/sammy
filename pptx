@@ -26,8 +26,10 @@ def generate_pptx():
     title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
     title_frame = title_shape.text_frame
     title_frame.text = f"Business Model: {model_name}"
-    title_frame.paragraphs[0].font.size = Pt(24)
-    title_frame.paragraphs[0].font.bold = True
+    title_p = title_frame.paragraphs[0]
+    title_p.font.size = Pt(24)
+    title_p.font.bold = True
+    title_p.font.name = 'Calibri'
 
     # Canvas блоки
     blocks = [
@@ -60,8 +62,8 @@ def generate_pptx():
 
         shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
         shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
-        shape.line.color.rgb = RGBColor(0, 0, 128)
+        shape.fill.fore_color.rgb = RGBColor(221, 235, 247)  # светло-голубой фон
+        shape.line.color.rgb = RGBColor(0, 0, 128)  # тёмно-синяя рамка
 
         text_frame = shape.text_frame
         text_frame.clear()
@@ -69,22 +71,22 @@ def generate_pptx():
         text_frame.margin_top = Inches(0.05)
         text_frame.margin_left = Inches(0.05)
         text_frame.margin_right = Inches(0.05)
-        text_frame.vertical_anchor = MSO_ANCHOR.TOP  # выравнивание по верху
+        text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
-        # Заголовок блока
         p_title = text_frame.paragraphs[0]
         p_title.text = title
         p_title.font.size = Pt(12)
         p_title.font.bold = True
+        p_title.font.name = 'Calibri'
         p_title.font.color.rgb = RGBColor(0, 0, 0)
         p_title.alignment = PP_ALIGN.LEFT
 
-        # Элементы списка
         for item in items:
             p = text_frame.add_paragraph()
             p.text = f"• {item}"
             p.level = 0
             p.font.size = Pt(10)
+            p.font.name = 'Calibri'
             p.font.color.rgb = RGBColor(0, 0, 0)
             p.alignment = PP_ALIGN.LEFT
 
