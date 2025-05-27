@@ -38,21 +38,22 @@ def generate_pptx():
     title_p.font.bold = True
     title_p.font.name = 'Calibri'
 
-    # Canvas блоки
+    # Обновлённые блоки (cols = 9)
     blocks = [
         ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
         ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
         ("Value Proposition", data.get("value_proposition", []), 4, 0, 2, 1),
-        ("Activities", data.get("activities", []), 6, 0, 2, 1),
-        ("Resources", data.get("resources", []), 8, 0, 2, 1),
+        ("Activities", data.get("activities", []), 6, 0, 3, 1),
+
         ("Customer Relationship", data.get("customer_relationship", []), 0, 1, 2, 1),
-        ("Offering", data.get("offering", []), 2, 1, 4, 1),
-        ("Partners", data.get("partners", []), 6, 1, 2, 1),
-        ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2, 5, 1),
-        ("Cost Drivers", data.get("cost_drivers", []), 5, 2, 5, 1),
+        ("Offering", data.get("offering", []), 2, 1, 5, 1),
+        ("Partners", data.get("partners", []), 7, 1, 2, 1),
+
+        ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2, 4, 1),
+        ("Cost Drivers", data.get("cost_drivers", []), 4, 2, 5, 1),
     ]
 
-    cols = 10
+    cols = 9
     rows = 3
     margin_left = Inches(0.3)
     margin_top = Inches(1.0)
