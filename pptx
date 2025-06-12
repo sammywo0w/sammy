@@ -56,12 +56,14 @@ def generate_pptx():
             if not shape.has_text_frame:
                 continue
             for key, values in fields.items():
-                if key in shape.text:
-                    if key == "<Business Model Name>":
-                        replace_text([key], values, shape)
-                    else:
-                        placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
-                        replace_text(placeholder_list, values, shape)
+                if key == "<Business Model Name>":
+    if key in shape.text:
+        replace_text([key], values, shape)
+else:
+    placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
+    if any(p in shape.text for p in placeholder_list):
+        replace_text(placeholder_list, values, shape)
+
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
