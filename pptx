@@ -12,10 +12,9 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    template_path = "11Business Model Template.pptx"
-    prs = Presentation(template_path)
+    prs = Presentation("11Business Model Template.pptx")
 
-    key_map = {
+    placeholder_map = {
         "target_customers": "Target Customer",
         "value_proposition": "Value Proposition",
         "cost_drivers": "Cost driver",
@@ -29,91 +28,40 @@ def generate_pptx():
         "model_name": "Business Model Name"
     }
 
-    def replace_text_runs(slide, placeholder_base, replacements):
+    def replace_placeholders_by_index(slide, key, items):
+        placeholder_base = placeholder_map[key]
+        max_range = 30  # защита от слишком больших циклов
+
         for shape in slide.shapes:
             if not shape.has_text_frame:
                 continue
             for paragraph in shape.text_frame.paragraphs:
                 for run in paragraph.runs:
-                    text = run.text
-                    for i, item in enumerate(replacements, 1):
-                        text = text.replace(f"<{placeholder_base} {i}>", item)
-                    text = text.replace(f"<{placeholder_base}>", ", ".join(replacements))
-                    run.text = text
+                    original = run.text
+                    if not isinstance(original, str):
+                        continue
 
-    def replace_title(slide, model_name):
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-            for paragraph in shape.text_frame.paragraphs:
-                for run in paragraph.runs:
-                    if "<Business Model Name>" in run.text:
-                        run.text = run.text.replace("<Business Model Name>", model_name)
+                    # Заменим пронумерованные <Key 1>, <Key 2> ...
+                    for i in range(1, max_range):
+                        placeholder = f"<{placeholder_base} {i}>"
+                        if placeholder in run.text:
+                            new_value = items[i - 1] if i <= len(items) else ""
+                            run.text = run.text.replace(placeholder, new_value)
 
-    def clean_unused_placeholders(slide):
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
+                    # Также заменим одиночные плейсхолдеры, типа <Business Model Name>
+                    if f"<{placeholder_base}>" in run.text:
+                        text_value = items[0] if items else ""
+                        run.text = run.text.replace(f"<{placeholder_base}>", text_value)
 
-            old_paragraphs = shape.text_frame.paragraphs
-            title_paragraph = old_paragraphs[0]
-            title_runs = title_paragraph.runs
-
-            new_paragraphs = []
-
-            # Сохраняем заголовок, если в нём нет плейсхолдеров
-            if not any("<" in run.text and ">" in run.text for run in title_runs):
-                new_paragraphs.append(title_paragraph)
-
-            # Сохраняем только параграфы без плейсхолдеров
-            for paragraph in list(old_paragraphs)[1:]:
-                text = "".join(run.text for run in paragraph.runs)
-                if not re.search(r"<[^>]+>", text):
-                    new_paragraphs.append(paragraph)
-
-            if len(new_paragraphs) != len(old_paragraphs):
-                text_frame = shape.text_frame
-                text_frame.clear()
-
-                # Создаём заголовок заново
-                title_p = text_frame.add_paragraph()
-                for run in title_runs:
-                    r = title_p.add_run()
-                    r.text = run.text
-                    if run.font:
-                        r.font.size = run.font.size
-                        r.font.name = run.font.name
-                        r.font.bold = run.font.bold
-                        if run.font.color and run.font.color.rgb:
-                            r.font.color.rgb = run.font.color.rgb
-
-                # Остальные пункты с буллетами
-                for p in new_paragraphs[1:]:
-                    para = text_frame.add_paragraph()
-                    para.level = 0  # Включаем буллет
-                    for run in p.runs:
-                        r = para.add_run()
-                        r.text = run.text
-                        if run.font:
-                            r.font.size = run.font.size
-                            r.font.name = run.font.name
-                            r.font.bold = run.font.bold
-                            if run.font.color and run.font.color.rgb:
-                                r.font.color.rgb = run.font.color.rgb
-
-    # Проходим по всем слайдам и применяем замены
+    # Применяем для всех слайдов и ключей
     for slide in prs.slides:
-        for field, base_key in key_map.items():
-            value = data.get(field, [])
-            if not isinstance(value, list):
-                value = [value]
-            if field == "model_name":
-                replace_title(slide, value[0] if value else "")
-            else:
-                replace_text_runs(slide, base_key, value)
-        clean_unused_placeholders(slide)
+        for key in placeholder_map:
+            values = data.get(key, [])
+            if not isinstance(values, list):
+                values = [values]
+            replace_placeholders_by_index(slide, key, values)
 
-    # Сохраняем результат
+    # Сохраняем итог
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
     prs.save(filepath)
