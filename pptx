@@ -11,7 +11,6 @@ def replace_text(placeholders, values, shape):
 
     used_placeholders = set()
 
-    # Заменяем все найденные плейсхолдеры
     for paragraph in shape.text_frame.paragraphs:
         for run in paragraph.runs:
             for i, placeholder in enumerate(placeholders):
@@ -20,9 +19,8 @@ def replace_text(placeholders, values, shape):
                         run.text = run.text.replace(placeholder, values[i])
                         used_placeholders.add(placeholder)
                     else:
-                        run.text = run.text.replace(placeholder, "")  # удаляем, если данных нет
+                        run.text = run.text.replace(placeholder, "")
 
-    # Добавляем оставшиеся значения, если их больше, чем плейсхолдеров
     extra_values = values[len(placeholders):]
     for val in extra_values:
         p = shape.text_frame.add_paragraph()
@@ -57,13 +55,12 @@ def generate_pptx():
                 continue
             for key, values in fields.items():
                 if key == "<Business Model Name>":
-    if key in shape.text:
-        replace_text([key], values, shape)
-else:
-    placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
-    if any(p in shape.text for p in placeholder_list):
-        replace_text(placeholder_list, values, shape)
-
+                    if key in shape.text:
+                        replace_text([key], values, shape)
+                else:
+                    placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
+                    if any(p in shape.text for p in placeholder_list):
+                        replace_text(placeholder_list, values, shape)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
@@ -72,3 +69,4 @@ else:
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
