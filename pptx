@@ -7,26 +7,28 @@ import re
 app = Flask(__name__)
 
 def replace_placeholders(prs, data):
+    # соответствие ключей JSON → базовые плейсхолдеры
     key_map = {
-        "target_customers": "target",
-        "value_proposition": "value",
-        "revenue_drivers": "revenue",
-        "cost_drivers": "cost",
-        "customer_channels": "customer_channels",
-        "customer_relationship": "customer_relationship",
-        "activities": "activities",
+        "target_customers": "target_customer",
+        "value_proposition": "value_proposition",
+        "revenue_drivers": "revenue_driver",
+        "cost_drivers": "cost_driver",
+        "customer_channels": "customer_channel",
+        "resources": "resource",
         "offering": "offering",
-        "partners": "partners",
-        "resources": "resources",
-        "model_name": "business"
+        "customer_relationship": "customer_relation",
+        "partners": "partner",
+        "activities": "activity",
+        "model_name": "business_model_name"
     }
 
-    # нормализуем ключи
+    # нормализация ключей
     normalized_data = {}
     for k, v in data.items():
-        new_key = key_map.get(k, k)
-        normalized_data[new_key] = v
+        mapped_key = key_map.get(k, k)
+        normalized_data[mapped_key] = v
 
+    # замена по шаблону
     for slide in prs.slides:
         for shape in slide.shapes:
             if not shape.has_text_frame:
@@ -38,27 +40,29 @@ def replace_placeholders(prs, data):
                     new_text = run.text
 
                     for match in matches:
-                        key = match.lower()
-                        parts = key.split()
+                        placeholder_key = match.lower()
+                        parts = placeholder_key.split()
                         if not parts:
                             continue
 
-                        base = parts[0]
+                        base_key = parts[0]  # например: "target_customer"
                         try:
-                            index = int(parts[-1]) - 1
+                            index = int(parts[-1]) - 1  # "3" → 2
                         except:
                             index = None
 
                         value = ""
-                        if base in normalized_data:
-                            if isinstance(normalized_data[base], list) and index is not None:
-                                if index < len(normalized_data[base]):
-                                    value = str(normalized_data[base][index])
-                            elif isinstance(normalized_data[base], str) and index is None:
-                                value = normalized_data[base]
+                        if base_key in normalized_data:
+                            source = normalized_data[base_key]
+                            if isinstance(source, list) and index is not None and index < len(source):
+                                value = str(source[index])
+                            elif isinstance(source, str) and index is None:
+                                value = source
 
                         new_text = new_text.replace(f"<{match}>", value)
 
+                    # удаление оставшихся незаполненных плейсхолдеров
+                    new_text = re.sub(r"<.*?>", "", new_text)
                     run.text = new_text
 
 @app.route('/generate', methods=['POST'])
@@ -67,8 +71,7 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    prs = Presentation("11Business Model Template.pptx")  # путь к шаблону
-
+    prs = Presentation("11Business Model Template.pptx")
     replace_placeholders(prs, data)
 
     filename = f"{uuid.uuid4().hex}.pptx"
