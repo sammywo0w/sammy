@@ -65,19 +65,18 @@ def generate_pptx():
             if not any("<" in run.text and ">" in run.text for run in title_runs):
                 new_paragraphs.append(title_paragraph)
 
-            # Очищаем абзацы от плейсхолдеров
+            # Сохраняем только параграфы без плейсхолдеров
             for paragraph in list(old_paragraphs)[1:]:
                 text = "".join(run.text for run in paragraph.runs)
                 if not re.search(r"<[^>]+>", text):
                     new_paragraphs.append(paragraph)
 
-            # Если были удалены абзацы — пересобираем блок
             if len(new_paragraphs) != len(old_paragraphs):
                 text_frame = shape.text_frame
                 text_frame.clear()
 
-                # Заголовок
-                title_p = text_frame.paragraphs[0]
+                # Создаём заголовок заново
+                title_p = text_frame.add_paragraph()
                 for run in title_runs:
                     r = title_p.add_run()
                     r.text = run.text
@@ -88,10 +87,10 @@ def generate_pptx():
                         if run.font.color and run.font.color.rgb:
                             r.font.color.rgb = run.font.color.rgb
 
-                # Остальные параграфы с буллетами
+                # Остальные пункты с буллетами
                 for p in new_paragraphs[1:]:
                     para = text_frame.add_paragraph()
-                    para.level = 0
+                    para.level = 0  # Включаем буллет
                     for run in p.runs:
                         r = para.add_run()
                         r.text = run.text
@@ -102,7 +101,7 @@ def generate_pptx():
                             if run.font.color and run.font.color.rgb:
                                 r.font.color.rgb = run.font.color.rgb
 
-    # Проходим по всем слайдам и заменяем
+    # Проходим по всем слайдам и применяем замены
     for slide in prs.slides:
         for field, base_key in key_map.items():
             value = data.get(field, [])
@@ -114,7 +113,7 @@ def generate_pptx():
                 replace_text_runs(slide, base_key, value)
         clean_unused_placeholders(slide)
 
-    # Сохраняем и возвращаем
+    # Сохраняем результат
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
     prs.save(filepath)
