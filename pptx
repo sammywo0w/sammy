@@ -7,6 +7,26 @@ import re
 app = Flask(__name__)
 
 def replace_placeholders(prs, data):
+    key_map = {
+        "target_customers": "target",
+        "value_proposition": "value",
+        "revenue_drivers": "revenue",
+        "cost_drivers": "cost",
+        "customer_channels": "customer_channels",
+        "customer_relationship": "customer_relationship",
+        "activities": "activities",
+        "offering": "offering",
+        "partners": "partners",
+        "resources": "resources",
+        "model_name": "business"
+    }
+
+    # нормализуем ключи
+    normalized_data = {}
+    for k, v in data.items():
+        new_key = key_map.get(k, k)
+        normalized_data[new_key] = v
+
     for slide in prs.slides:
         for shape in slide.shapes:
             if not shape.has_text_frame:
@@ -30,12 +50,12 @@ def replace_placeholders(prs, data):
                             index = None
 
                         value = ""
-                        if base in data:
-                            if isinstance(data[base], list) and index is not None:
-                                if index < len(data[base]):
-                                    value = str(data[base][index])
-                            elif isinstance(data[base], str) and index is None:
-                                value = data[base]
+                        if base in normalized_data:
+                            if isinstance(normalized_data[base], list) and index is not None:
+                                if index < len(normalized_data[base]):
+                                    value = str(normalized_data[base][index])
+                            elif isinstance(normalized_data[base], str) and index is None:
+                                value = normalized_data[base]
 
                         new_text = new_text.replace(f"<{match}>", value)
 
@@ -59,4 +79,3 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
