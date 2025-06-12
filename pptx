@@ -7,37 +7,43 @@ import uuid
 
 app = Flask(__name__)
 
-# Плейсхолдеры в шаблоне и соответствующие поля в JSON
+# Соответствие плейсхолдеров и ключей JSON
 PLACEHOLDER_MAP = {
-    "[Target Customers]": "target_customers",
-    "[Customer Channels]": "customer_channels",
-    "[Value Proposition]": "value_proposition",
-    "[Activities]": "activities",
-    "[Customer Relationship]": "customer_relationship",
-    "[Offering]": "offering",
-    "[Partners]": "partners",
-    "[Revenue Drivers]": "revenue_drivers",
-    "[Cost Drivers]": "cost_drivers",
-    "[Resources]": "resources",
-    "<Business Model Name>": "model_name"
+    "[Target Customers]": ("target_customers", "Target Customers"),
+    "[Customer Channels]": ("customer_channels", "Customer Channels"),
+    "[Value Proposition]": ("value_proposition", "Value Proposition"),
+    "[Activities]": ("activities", "Activities"),
+    "[Customer Relationship]": ("customer_relationship", "Customer Relationship"),
+    "[Offerings]": ("offering", "Offering"),
+    "[Partners]": ("partners", "Partners"),
+    "[Revenue drivers]": ("revenue_drivers", "Revenue Drivers"),
+    "[Cost drivers]": ("cost_drivers", "Cost Drivers"),
+    "[Resources]": ("resources", "Resources"),
+    "<Business Model Name>": ("model_name", None)
 }
 
-def apply_values_to_shape(shape, placeholder, values):
-    if not shape.has_text_frame:
-        return
-    if placeholder not in shape.text:
+def apply_values_to_shape(shape, placeholder, values, title=None):
+    if not shape.has_text_frame or placeholder not in shape.text:
         return
 
     shape.text_frame.clear()
+
+    if title:
+        p_title = shape.text_frame.paragraphs[0]
+        p_title.text = title
+        p_title.font.size = Pt(14)
+        p_title.font.bold = True
 
     if isinstance(values, list):
         for val in values:
             p = shape.text_frame.add_paragraph()
             p.text = val
+            p.level = 0
             p.font.size = Pt(12)
             p.alignment = PP_ALIGN.LEFT
+            p._element.get_or_add_pPr().insert(0, p._element._element.makeelement('a:buChar', {"char": "•"}))
     else:
-        p = shape.text_frame.paragraphs[0]
+        p = shape.text_frame.add_paragraph()
         p.text = values
         p.font.size = Pt(14)
         p.alignment = PP_ALIGN.LEFT
@@ -48,16 +54,13 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    template_path = "final Business Model Template.pptx"
-    prs = Presentation(template_path)
+    prs = Presentation("final Business Model Template.pptx")
 
     for slide in prs.slides:
         for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-            for placeholder, field_key in PLACEHOLDER_MAP.items():
+            for placeholder, (field_key, title) in PLACEHOLDER_MAP.items():
                 if placeholder in shape.text:
-                    apply_values_to_shape(shape, placeholder, data.get(field_key, ""))
+                    apply_values_to_shape(shape, placeholder, data.get(field_key, []), title)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
