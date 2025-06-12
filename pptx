@@ -2,68 +2,8 @@ from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
 import os
 import uuid
-import re
 
 app = Flask(__name__)
-
-def replace_placeholders(prs, data):
-    # соответствие ключей JSON → базовые плейсхолдеры
-    key_map = {
-        "target_customers": "target_customer",
-        "value_proposition": "value_proposition",
-        "revenue_drivers": "revenue_driver",
-        "cost_drivers": "cost_driver",
-        "customer_channels": "customer_channel",
-        "resources": "resource",
-        "offering": "offering",
-        "customer_relationship": "customer_relation",
-        "partners": "partner",
-        "activities": "activity",
-        "model_name": "business_model_name"
-    }
-
-    # нормализация ключей
-    normalized_data = {}
-    for k, v in data.items():
-        mapped_key = key_map.get(k, k)
-        normalized_data[mapped_key] = v
-
-    # замена по шаблону
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-
-            for paragraph in shape.text_frame.paragraphs:
-                for run in paragraph.runs:
-                    matches = re.findall(r"<(.*?)>", run.text)
-                    new_text = run.text
-
-                    for match in matches:
-                        placeholder_key = match.lower()
-                        parts = placeholder_key.split()
-                        if not parts:
-                            continue
-
-                        base_key = parts[0]  # например: "target_customer"
-                        try:
-                            index = int(parts[-1]) - 1  # "3" → 2
-                        except:
-                            index = None
-
-                        value = ""
-                        if base_key in normalized_data:
-                            source = normalized_data[base_key]
-                            if isinstance(source, list) and index is not None and index < len(source):
-                                value = str(source[index])
-                            elif isinstance(source, str) and index is None:
-                                value = source
-
-                        new_text = new_text.replace(f"<{match}>", value)
-
-                    # удаление оставшихся незаполненных плейсхолдеров
-                    new_text = re.sub(r"<.*?>", "", new_text)
-                    run.text = new_text
 
 @app.route('/generate', methods=['POST'])
 def generate_pptx():
@@ -71,14 +11,59 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    prs = Presentation("11Business Model Template.pptx")
-    replace_placeholders(prs, data)
+    # Загрузка шаблона
+    template_path = "11Business Model Template.pptx"
+    prs = Presentation(template_path)
+
+    # Карта замены плейсхолдеров
+    key_map = {
+        "target_customers": "Target Customer",
+        "value_proposition": "Value Proposition",
+        "cost_drivers": "Cost driver",
+        "revenue_drivers": "Revenue driver",
+        "customer_channels": "Customer Channel",
+        "resources": "Resource",
+        "offering": "Offering",
+        "customer_relationship": "Customer Relation",
+        "partners": "Partner",
+        "activities": "Activity",
+        "model_name": "Business Model Name"
+    }
+
+    def replace_text(slide, placeholder, replacements):
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for paragraph in shape.text_frame.paragraphs:
+                for run in paragraph.runs:
+                    if f"<{placeholder}>" in run.text:
+                        for i, item in enumerate(replacements, 1):
+                            run.text = run.text.replace(f"<{placeholder} {i}>", item)
+                        run.text = run.text.replace(f"<{placeholder}>", ", ".join(replacements))  # fallback
+
+    def replace_title(slide, model_name):
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            if "<Business Model Name>" in shape.text:
+                shape.text = shape.text.replace("<Business Model Name>", model_name)
+
+    for slide in prs.slides:
+        for field, base_key in key_map.items():
+            value = data.get(field, [])
+            if not isinstance(value, list):
+                value = [value]
+            if field == "model_name":
+                replace_title(slide, value[0] if value else "")
+            else:
+                replace_text(slide, base_key, value)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
     prs.save(filepath)
 
-    return send_file(filepath, as_attachment=True, download_name="business_model_filled.pptx")
+    return send_file(filepath, as_attachment=True, download_name="business_model_canvas.pptx")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
