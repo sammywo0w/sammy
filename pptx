@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
 import os
 import uuid
+import re
 
 app = Flask(__name__)
 
@@ -11,11 +12,9 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    # Загружаем шаблон
     template_path = "11Business Model Template.pptx"
     prs = Presentation(template_path)
 
-    # Карта полей → плейсхолдеров
     key_map = {
         "target_customers": "Target Customer",
         "value_proposition": "Value Proposition",
@@ -30,30 +29,18 @@ def generate_pptx():
         "model_name": "Business Model Name"
     }
 
-    # Замена с перезаписью полного текста
-    def replace_text_full(slide, placeholder_base, replacements):
+    def replace_text_runs(slide, placeholder_base, replacements):
         for shape in slide.shapes:
             if not shape.has_text_frame:
                 continue
-            text = shape.text
-            replaced = False
+            for paragraph in shape.text_frame.paragraphs:
+                for run in paragraph.runs:
+                    text = run.text
+                    for i, item in enumerate(replacements, 1):
+                        text = text.replace(f"<{placeholder_base} {i}>", item)
+                    text = text.replace(f"<{placeholder_base}>", ", ".join(replacements))
+                    run.text = text
 
-            for i, item in enumerate(replacements, 1):
-                placeholder = f"<{placeholder_base} {i}>"
-                if placeholder in text:
-                    text = text.replace(placeholder, item)
-                    replaced = True
-
-            # универсальный плейсхолдер
-            if f"<{placeholder_base}>" in text:
-                text = text.replace(f"<{placeholder_base}>", ", ".join(replacements))
-                replaced = True
-
-            if replaced:
-                shape.text_frame.clear()
-                shape.text_frame.text = text
-
-    # Отдельная замена для заголовка
     def replace_title(slide, model_name):
         for shape in slide.shapes:
             if not shape.has_text_frame:
@@ -63,6 +50,31 @@ def generate_pptx():
                     if "<Business Model Name>" in run.text:
                         run.text = run.text.replace("<Business Model Name>", model_name)
 
+    def clean_unused_placeholders(slide):
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            paragraphs_to_keep = []
+            for paragraph in shape.text_frame.paragraphs:
+                full_text = ''.join(run.text for run in paragraph.runs)
+                if not re.search(r"<[^>]+>", full_text):
+                    paragraphs_to_keep.append(paragraph)
+
+            if len(paragraphs_to_keep) != len(shape.text_frame.paragraphs):
+                text_frame = shape.text_frame
+                text_frame.clear()
+                for p in paragraphs_to_keep:
+                    new_p = text_frame.add_paragraph()
+                    for run in p.runs:
+                        r = new_p.add_run()
+                        r.text = run.text
+                        if run.font:
+                            r.font.size = run.font.size
+                            r.font.name = run.font.name
+                            r.font.bold = run.font.bold
+                            if run.font.color and run.font.color.rgb:
+                                r.font.color.rgb = run.font.color.rgb
+
     for slide in prs.slides:
         for field, base_key in key_map.items():
             value = data.get(field, [])
@@ -71,7 +83,8 @@ def generate_pptx():
             if field == "model_name":
                 replace_title(slide, value[0] if value else "")
             else:
-                replace_text_full(slide, base_key, value)
+                replace_text_runs(slide, base_key, value)
+        clean_unused_placeholders(slide)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
@@ -81,3 +94,4 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
