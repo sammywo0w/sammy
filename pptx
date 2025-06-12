@@ -1,13 +1,20 @@
 from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.dml.color import RGBColor
 import os
 import uuid
 
 app = Flask(__name__)
+
+def replace_text(placeholders, values, shape):
+    if not isinstance(values, list):
+        values = [values]
+    for i, paragraph in enumerate(shape.text_frame.paragraphs):
+        if i >= len(values):
+            break
+        for run in paragraph.runs:
+            for placeholder in placeholders:
+                if placeholder in run.text:
+                    run.text = run.text.replace(placeholder, values[i])
 
 @app.route('/generate', methods=['POST'])
 def generate_pptx():
@@ -15,88 +22,34 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    model_name = data.get("model_name", "Business Model Canvas")
+    # Путь к шаблону в корне репозитория
+    template_path = "Business Model Template.pptx"
+    prs = Presentation(template_path)
 
-    prs = Presentation()
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    fields = {
+        "<Business Model Name>": data.get("model_name", ""),
+        "<Target Customer": data.get("target_customers", []),
+        "<Customer Channel": data.get("customer_channels", []),
+        "<Value Proposition": data.get("value_proposition", []),
+        "<Activity": data.get("activities", []),
+        "<Customer Relation": data.get("customer_relationship", []),
+        "<Offering": data.get("offering", []),
+        "<Partner": data.get("partners", []),
+        "<Revenue driver": data.get("revenue_drivers", []),
+        "<Cost driver": data.get("cost_drivers", []),
+    }
 
-    # Фон слайда — голубой
-    background = slide.background
-    fill = background.fill
-    fill.solid()
-    fill.fore_color.rgb = RGBColor(221, 235, 247)
-
-    slide_width = prs.slide_width
-    slide_height = prs.slide_height
-
-    # Заголовок
-    title_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), slide_width - Inches(0.6), Inches(0.6))
-    title_frame = title_shape.text_frame
-    title_frame.text = f"Business Model: {model_name}"
-    title_p = title_frame.paragraphs[0]
-    title_p.font.size = Pt(24)
-    title_p.font.bold = True
-    title_p.font.name = 'Calibri'
-
-    # Обновлённые блоки (cols = 9)
-    blocks = [
-        ("Target Customers", data.get("target_customers", []), 0, 0, 2, 1),
-        ("Customer Channels", data.get("customer_channels", []), 2, 0, 2, 1),
-        ("Value Proposition", data.get("value_proposition", []), 4, 0, 2, 1),
-        ("Activities", data.get("activities", []), 6, 0, 3, 1),
-
-        ("Customer Relationship", data.get("customer_relationship", []), 0, 1, 2, 1),
-        ("Offering", data.get("offering", []), 2, 1, 5, 1),
-        ("Partners", data.get("partners", []), 7, 1, 2, 1),
-
-        ("Revenue Drivers", data.get("revenue_drivers", []), 0, 2, 4, 1),
-        ("Cost Drivers", data.get("cost_drivers", []), 4, 2, 5, 1),
-    ]
-
-    cols = 9
-    rows = 3
-    margin_left = Inches(0.3)
-    margin_top = Inches(1.0)
-    grid_width = slide_width - Inches(0.6)
-    grid_height = slide_height - Inches(1.4)
-    cell_width = grid_width / cols
-    cell_height = grid_height / rows
-
-    for title, items, x, y, w, h in blocks:
-        left = margin_left + x * cell_width
-        top = margin_top + y * cell_height
-        width = w * cell_width
-        height = h * cell_height
-
-        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)  # белый фон блоков
-        shape.line.color.rgb = RGBColor(0, 0, 128)  # тёмно-синяя рамка
-
-        text_frame = shape.text_frame
-        text_frame.clear()
-        text_frame.word_wrap = True
-        text_frame.margin_top = Inches(0.05)
-        text_frame.margin_left = Inches(0.05)
-        text_frame.margin_right = Inches(0.05)
-        text_frame.vertical_anchor = MSO_ANCHOR.TOP
-
-        p_title = text_frame.paragraphs[0]
-        p_title.text = title
-        p_title.font.size = Pt(12)
-        p_title.font.bold = True
-        p_title.font.name = 'Calibri'
-        p_title.font.color.rgb = RGBColor(0, 0, 0)
-        p_title.alignment = PP_ALIGN.LEFT
-
-        for item in items:
-            p = text_frame.add_paragraph()
-            p.text = f"• {item}"
-            p.level = 0
-            p.font.size = Pt(10)
-            p.font.name = 'Calibri'
-            p.font.color.rgb = RGBColor(0, 0, 0)
-            p.alignment = PP_ALIGN.LEFT
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            text = shape.text
+            for key, values in fields.items():
+                if key in text:
+                    if key == "<Business Model Name>":
+                        replace_text([key], values, shape)
+                    else:
+                        replace_text([f"{key} {i+1}>" for i in range(3)], values, shape)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
