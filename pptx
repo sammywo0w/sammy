@@ -54,19 +54,46 @@ def generate_pptx():
         for shape in slide.shapes:
             if not shape.has_text_frame:
                 continue
-            paragraphs_to_keep = []
-            for paragraph in shape.text_frame.paragraphs:
-                full_text = ''.join(run.text for run in paragraph.runs)
-                if not re.search(r"<[^>]+>", full_text):
-                    paragraphs_to_keep.append(paragraph)
 
-            if len(paragraphs_to_keep) != len(shape.text_frame.paragraphs):
+            old_paragraphs = shape.text_frame.paragraphs
+            title_paragraph = old_paragraphs[0]
+            title_runs = title_paragraph.runs
+
+            new_paragraphs = []
+
+            # Сохраняем заголовок, если в нём нет плейсхолдеров
+            if not any("<" in run.text and ">" in run.text for run in title_runs):
+                new_paragraphs.append(title_paragraph)
+
+            # Очищаем абзацы от плейсхолдеров
+            for paragraph in list(old_paragraphs)[1:]:
+                text = "".join(run.text for run in paragraph.runs)
+                if not re.search(r"<[^>]+>", text):
+                    new_paragraphs.append(paragraph)
+
+            # Если были удалены абзацы — пересобираем блок
+            if len(new_paragraphs) != len(old_paragraphs):
                 text_frame = shape.text_frame
                 text_frame.clear()
-                for p in paragraphs_to_keep:
-                    new_p = text_frame.add_paragraph()
+
+                # Заголовок
+                title_p = text_frame.paragraphs[0]
+                for run in title_runs:
+                    r = title_p.add_run()
+                    r.text = run.text
+                    if run.font:
+                        r.font.size = run.font.size
+                        r.font.name = run.font.name
+                        r.font.bold = run.font.bold
+                        if run.font.color and run.font.color.rgb:
+                            r.font.color.rgb = run.font.color.rgb
+
+                # Остальные параграфы с буллетами
+                for p in new_paragraphs[1:]:
+                    para = text_frame.add_paragraph()
+                    para.level = 0
                     for run in p.runs:
-                        r = new_p.add_run()
+                        r = para.add_run()
                         r.text = run.text
                         if run.font:
                             r.font.size = run.font.size
@@ -75,6 +102,7 @@ def generate_pptx():
                             if run.font.color and run.font.color.rgb:
                                 r.font.color.rgb = run.font.color.rgb
 
+    # Проходим по всем слайдам и заменяем
     for slide in prs.slides:
         for field, base_key in key_map.items():
             value = data.get(field, [])
@@ -86,6 +114,7 @@ def generate_pptx():
                 replace_text_runs(slide, base_key, value)
         clean_unused_placeholders(slide)
 
+    # Сохраняем и возвращаем
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
     prs.save(filepath)
@@ -94,4 +123,3 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
