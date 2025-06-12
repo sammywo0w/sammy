@@ -40,8 +40,9 @@ def apply_values_to_shape(shape, placeholder, values, title=None):
             p.text = val
             p.level = 0
             p.font.size = Pt(12)
+            p.font.bold = False
             p.alignment = PP_ALIGN.LEFT
-            p._element.get_or_add_pPr().insert(0, p._element._element.makeelement('a:buChar', {"char": "•"}))
+            p.bullet = True
     else:
         p = shape.text_frame.add_paragraph()
         p.text = values
@@ -69,3 +70,4 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
