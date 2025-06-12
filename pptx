@@ -9,16 +9,16 @@ app = Flask(__name__)
 
 # Плейсхолдеры в шаблоне и соответствующие поля в JSON
 PLACEHOLDER_MAP = {
-    "[ Target Customers]": "target_customers",
-    "[ Customer Channels]": "customer_channels",
-    "[ Value Proposition]": "value_proposition",
-    "[ Activities]": "activities",
-    "[ Customer Relationship]": "customer_relationship",
-    "[ Offering]": "offering",
-    "[ Partners]": "partners",
-    "[ Revenue Drivers]": "revenue_drivers",
-    "[ Cost Drivers]": "cost_drivers",
-    "[ Resources]": "resources",
+    "[Target Customers]": "target_customers",
+    "[Customer Channels]": "customer_channels",
+    "[Value Proposition]": "value_proposition",
+    "[Activities]": "activities",
+    "[Customer Relationship]": "customer_relationship",
+    "[Offering]": "offering",
+    "[Partners]": "partners",
+    "[Revenue Drivers]": "revenue_drivers",
+    "[Cost Drivers]": "cost_drivers",
+    "[Resources]": "resources",
     "<Business Model Name>": "model_name"
 }
 
