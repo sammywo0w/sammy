@@ -1,30 +1,46 @@
 from flask import Flask, request, send_file, jsonify
 from pptx import Presentation
+from pptx.util import Pt
+from pptx.enum.text import PP_ALIGN
 import os
 import uuid
 
 app = Flask(__name__)
 
-def replace_text(placeholders, values, shape):
-    if not isinstance(values, list):
-        values = [values]
+# Плейсхолдеры в шаблоне и соответствующие поля в JSON
+PLACEHOLDER_MAP = {
+    "[ Target Customers]": "target_customers",
+    "[ Customer Channels]": "customer_channels",
+    "[ Value Proposition]": "value_proposition",
+    "[ Activities]": "activities",
+    "[ Customer Relationship]": "customer_relationship",
+    "[ Offering]": "offering",
+    "[ Partners]": "partners",
+    "[ Revenue Drivers]": "revenue_drivers",
+    "[ Cost Drivers]": "cost_drivers",
+    "[ Resources]": "resources",
+    "<Business Model Name>": "model_name"
+}
 
-    used_placeholders = set()
+def apply_values_to_shape(shape, placeholder, values):
+    if not shape.has_text_frame:
+        return
+    if placeholder not in shape.text:
+        return
 
-    for paragraph in shape.text_frame.paragraphs:
-        for run in paragraph.runs:
-            for i, placeholder in enumerate(placeholders):
-                if placeholder in run.text:
-                    if i < len(values):
-                        run.text = run.text.replace(placeholder, values[i])
-                        used_placeholders.add(placeholder)
-                    else:
-                        run.text = run.text.replace(placeholder, "")
+    shape.text_frame.clear()
 
-    extra_values = values[len(placeholders):]
-    for val in extra_values:
-        p = shape.text_frame.add_paragraph()
-        p.text = f"- {val}"
+    if isinstance(values, list):
+        for val in values:
+            p = shape.text_frame.add_paragraph()
+            p.text = val
+            p.font.size = Pt(12)
+            p.alignment = PP_ALIGN.LEFT
+    else:
+        p = shape.text_frame.paragraphs[0]
+        p.text = values
+        p.font.size = Pt(14)
+        p.alignment = PP_ALIGN.LEFT
 
 @app.route('/generate', methods=['POST'])
 def generate_pptx():
@@ -32,35 +48,16 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    template_path = "Business Model Template.pptx"
+    template_path = "final Business Model Template.pptx"
     prs = Presentation(template_path)
-
-    fields = {
-        "<Business Model Name>": data.get("model_name", ""),
-        "<Target Customer": data.get("target_customers", []),
-        "<Customer Channel": data.get("customer_channels", []),
-        "<Value Proposition": data.get("value_proposition", []),
-        "<Activity": data.get("activities", []),
-        "<Customer Relation": data.get("customer_relationship", []),
-        "<Offering": data.get("offering", []),
-        "<Partner": data.get("partners", []),
-        "<Revenue driver": data.get("revenue_drivers", []),
-        "<Cost driver": data.get("cost_drivers", []),
-        "<Resource": data.get("resources", [])
-    }
 
     for slide in prs.slides:
         for shape in slide.shapes:
             if not shape.has_text_frame:
                 continue
-            for key, values in fields.items():
-                if key == "<Business Model Name>":
-                    if key in shape.text:
-                        replace_text([key], values, shape)
-                else:
-                    placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
-                    if any(p in shape.text for p in placeholder_list):
-                        replace_text(placeholder_list, values, shape)
+            for placeholder, field_key in PLACEHOLDER_MAP.items():
+                if placeholder in shape.text:
+                    apply_values_to_shape(shape, placeholder, data.get(field_key, ""))
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
@@ -69,4 +66,3 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
