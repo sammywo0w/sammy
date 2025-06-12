@@ -8,11 +8,25 @@ app = Flask(__name__)
 def replace_text(placeholders, values, shape):
     if not isinstance(values, list):
         values = [values]
+
+    used_placeholders = set()
+
+    # Заменяем все найденные плейсхолдеры
     for paragraph in shape.text_frame.paragraphs:
         for run in paragraph.runs:
             for i, placeholder in enumerate(placeholders):
-                if placeholder in run.text and i < len(values):
-                    run.text = run.text.replace(placeholder, values[i])
+                if placeholder in run.text:
+                    if i < len(values):
+                        run.text = run.text.replace(placeholder, values[i])
+                        used_placeholders.add(placeholder)
+                    else:
+                        run.text = run.text.replace(placeholder, "")  # удаляем, если данных нет
+
+    # Добавляем оставшиеся значения, если их больше, чем плейсхолдеров
+    extra_values = values[len(placeholders):]
+    for val in extra_values:
+        p = shape.text_frame.add_paragraph()
+        p.text = f"- {val}"
 
 @app.route('/generate', methods=['POST'])
 def generate_pptx():
@@ -20,7 +34,7 @@ def generate_pptx():
     if not data:
         return jsonify({"error": "Invalid or missing JSON"}), 400
 
-    template_path = "Business Model Template.pptx"  # шаблон лежит в корне
+    template_path = "Business Model Template.pptx"
     prs = Presentation(template_path)
 
     fields = {
@@ -34,7 +48,7 @@ def generate_pptx():
         "<Partner": data.get("partners", []),
         "<Revenue driver": data.get("revenue_drivers", []),
         "<Cost driver": data.get("cost_drivers", []),
-        "<Resource": data.get("resources", [])  # <--- добавлен блок ресурсов
+        "<Resource": data.get("resources", [])
     }
 
     for slide in prs.slides:
@@ -46,7 +60,8 @@ def generate_pptx():
                     if key == "<Business Model Name>":
                         replace_text([key], values, shape)
                     else:
-                        replace_text([f"{key} {i+1}>" for i in range(len(values))], values, shape)
+                        placeholder_list = [f"{key} {i+1}>" for i in range(max(len(values), 3))]
+                        replace_text(placeholder_list, values, shape)
 
     filename = f"{uuid.uuid4().hex}.pptx"
     filepath = os.path.join("/tmp", filename)
@@ -55,4 +70,3 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
