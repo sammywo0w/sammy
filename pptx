@@ -59,6 +59,8 @@ def generate_pptx():
 
     for slide in prs.slides:
         for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
             for placeholder, (field_key, title) in PLACEHOLDER_MAP.items():
                 if placeholder in shape.text:
                     apply_values_to_shape(shape, placeholder, data.get(field_key, []), title)
@@ -70,4 +72,3 @@ def generate_pptx():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
