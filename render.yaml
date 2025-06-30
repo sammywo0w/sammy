@@ -3,5 +3,5 @@ services:
     name: pptx-generator
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python pptx.py"
+    startCommand: "python generate_pptx.py"
     autoDeploy: true
