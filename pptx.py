@@ -1,5 +1,5 @@
 from flask import Flask, request, send_file, jsonify
-from pptx.py import Presentation
+from pptx import Presentation
 import os
 import uuid
 import re
